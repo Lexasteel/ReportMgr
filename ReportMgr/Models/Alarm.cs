@@ -1,11 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 
 
 namespace ReportMgr
@@ -35,8 +28,8 @@ namespace ReportMgr
     //                }
     //            }
 
-    //            HistTimeStamp histstart = OvHNetHelper.StringToHistTime(string.Format("{0:MM'/'dd'/'yyyy HH:mm:ss}", Start.Value.ToUniversalTime()));
-    //            HistTimeStamp histend = OvHNetHelper.StringToHistTime(string.Format("{0:MM'/'dd'/'yyyy HH:mm:ss}", End.Value.ToUniversalTime()));
+    //            HistTimeStamp histstart = OvHNetHelper.StringToHistTime(string.format("{0:MM'/'dd'/'yyyy HH:mm:ss}", Start.Value.ToUniversalTime()));
+    //            HistTimeStamp histend = OvHNetHelper.StringToHistTime(string.format("{0:MM'/'dd'/'yyyy HH:mm:ss}", End.Value.ToUniversalTime()));
 
     //            client.Connect(Connection);
     //            HistAlarmItemEntityCollection histAlarm = new HistAlarmItemEntityCollection();
@@ -53,7 +46,7 @@ namespace ReportMgr
     //                    AlarmType = d.m_lpszAlarmType,
     //                    Limits = d.limitBits.ad_pts.limit_string,
     //                    PointDesc = d.m_lpszEnggDesc,
-    //                    PointName = d.m_lpszPointName,
+    //                    pointname = d.m_lpszPointName,
     //                    Priority = d.m_cPriority,
     //                    TimeStamp = OvHNetHelper.HistTimeToDateTime(d.m_htTimeStamp),
     //                    Units = d.limitBits.ad_pts.units_string,
@@ -76,7 +69,7 @@ namespace ReportMgr
     //                        AlarmType = d.m_lpszAlarmType,
     //                        Limits = d.limitBits.ad_pts.limit_string,
     //                        PointDesc = d.m_lpszEnggDesc,
-    //                        PointName = d.m_lpszPointName,
+    //                        pointname = d.m_lpszPointName,
     //                        Priority = d.m_cPriority,
     //                        TimeStamp = OvHNetHelper.HistTimeToDateTime(d.m_htTimeStamp),
     //                        Units = d.limitBits.ad_pts.units_string,
@@ -91,10 +84,10 @@ namespace ReportMgr
 
     //        }
 
-    //        if (Arhive == true)
+    //        if (arhive == true)
     //        {
-    //            string source = Path.GetDirectoryName(Destination) + @"\" + ReportName + @"\" + Start.Value.ToString("yyyy");
-    //            string dest = Path.GetDirectoryName(Destination) + @"\" + ReportName + "_" + Start.Value.ToString("yyyy") + ".zip ";
+    //            string source = Path.GetDirectoryName(Destination) + @"\" + reportname + @"\" + Start.Value.ToString("yyyy");
+    //            string dest = Path.GetDirectoryName(Destination) + @"\" + reportname + "_" + Start.Value.ToString("yyyy") + ".zip ";
     //            CreateZip(source, dest, 0);
     //        }
     //        return 0;
@@ -107,10 +100,10 @@ namespace ReportMgr
     //                MessageBox.Show("Необходимо использовать тип файла .csv");
     //                return false;
     //            case ".csv":
-    //                string newpath = Path.GetDirectoryName(Destination) + @"\" + ReportName + @"\" + Start.Value.ToString("yyyy") + @"\";
+    //                string newpath = Path.GetDirectoryName(Destination) + @"\" + reportname + @"\" + Start.Value.ToString("yyyy") + @"\";
     //                if (!Directory.Exists(newpath)) Directory.CreateDirectory(newpath);
-    //                string file = newpath + ReportName + "_";
-    //                switch (TimeFormatID)
+    //                string file = newpath + reportname + "_";
+    //                switch (timeformatid)
     //                {
     //                    case 3:
     //                        file += Start.Value.ToString("yyyyMM") + ".csv";
@@ -119,10 +112,10 @@ namespace ReportMgr
     //                        file += Start.Value.ToString("yyyyMMdd") + ".csv";
     //                        break;
     //                }
-                    
+
     //                if (File.Exists(file)) File.Delete(file);
     //                FileName = file;
-    //                string header = String.Join(";", "Date/Time", "Alarm Type", "Point Name", "Point Description", "Priority", "Value", "Quality", "Units/State", "Limits", "PointType");
+    //                string header = String.Join(";", "Date/Time", "Alarm Type", "Point Name", "Point description", "Priority", "Value", "Quality", "Units/State", "Limits", "PointType");
     //                File.AppendAllLines(file, new string[] { header }, Encoding.GetEncoding("Windows-1251"));
     //                return true;
     //            default:
@@ -133,15 +126,15 @@ namespace ReportMgr
     //    {
 
     //        File.WriteAllLines(FileName,
-    //            alarms.Select(x => String.Join(";", x.TimeStamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss"), x.AlarmType, x.PointName, x.PointDesc, x.Priority, x.Value, x.Qtext, x.Units, x.Limits, x.TypeTxt)), Encoding.GetEncoding("Windows-1251"));
+    //            alarms.Select(x => String.Join(";", x.TimeStamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss"), x.AlarmType, x.pointname, x.PointDesc, x.Priority, x.Value, x.Qtext, x.Units, x.Limits, x.TypeTxt)), Encoding.GetEncoding("Windows-1251"));
 
 
     //    }
 
-        
+
 
     //}
-    [NotMapped]
+
     public class Alarm
     {
         public DateTime TimeStamp { get; set; }

@@ -1,4 +1,5 @@
 ﻿using DevExpress.Spreadsheet;
+using Models;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -9,20 +10,30 @@ using System.Text;
 
 namespace AdapterOPH
 {
-    public class ExportToFile
+    public interface IExportFile
     {
-        //private DataImportOptions dataImportOptions;
-        private ReportDefinition report { get; set; } = new ReportDefinition();
-        public void ExportReadProcessed(ReportDefinition reportDefinition)
-        {
-            report = reportDefinition;
-            report.State(report.Progress, LogLevel.Info, $"File creation {report.DestinationInfo}");
+        void Export(ReportDefinition report);
+    }
+    
 
-            var DateStart = report.Start.Value;
-            var DateEnd = report.End.Value;
-            string fname = Path.GetFileNameWithoutExtension(report.DestinationInfo);
-            string filename = report.DestinationInfo.Replace(fname, fname + DateStart.ToString("_yyyyMMdd"));
-            if (DateStart.TimeOfDay.TotalSeconds > 0) filename = report.DestinationInfo.Replace(fname, fname + DateStart.ToString("_yyyyMMdd_HHmmss"));
+    public class ExportSimple
+    {
+        private readonly IEnumerable<Historian> _historians;
+
+        public ExportSimple(IEnumerable<Historian> historians)
+        {
+            _historians = historians;
+        }
+        private ReportDefinition report { get; set; } = new ReportDefinition();
+        public void Export(IReport ireport, bool MultiSheets)
+        {
+            // report.State(report.Progress, LogLevel.Info, $"File creation {report.destinationinfo}");
+
+            var DateStart = ireport.Report.HistPoints.First().F_Values.Min(m=>m.Key);
+            var DateEnd = ireport.Report.HistPoints.First().F_Values.Max(m => m.Key);
+            string fname = Path.GetFileNameWithoutExtension(report.destinationinfo);
+            string filename = report.destinationinfo.Replace(fname, fname + DateStart.ToString("_yyyyMMdd"));
+            if (DateStart.TimeOfDay.TotalSeconds > 0) filename = report.destinationinfo.Replace(fname, fname + DateStart.ToString("_yyyyMMdd_HHmmss"));
 
             Workbook workbook = new Workbook();
 
@@ -35,42 +46,41 @@ namespace AdapterOPH
             //{
             //    FormulaCulture = CultureInfo.GetCultureInfo("en-US")
             //};
-            string[] headers = report.Header2.Split(',');
+            string[] headers = report.header2.Split(',');
 
-            if (report.MultiSheets)
+            if (MultiSheets)
             {
-                var groups = report.HistPoints.GroupBy(g => g.PointName.Split('.')[1]);
+                var groups = report.HistPoints.GroupBy(g => g.pointname.Split('.')[1]);
                 foreach (var group in groups)
                 {
-                    string SheetName = group.First().PointName.Split('.')[1];
+                    string SheetName = group.First().pointname.Split('.')[1];
                     Worksheet worksheet = workbook.Worksheets.Add(SheetName);
                     SheetShaping(group.ToList(), worksheet);
                 }
                 workbook.Worksheets.RemoveAt(0);
-                using (DataContext db = new DataContext())
-                {
+                
                     foreach (var sh in workbook.Worksheets)
                     {
                         string oldName = sh.Name;
-                        Historian historian = db.Historians.FirstOrDefault(f => f.UnitNet == oldName);
-                        string sheetName = "Unit" + historian.Unit;
+                        Historian historian = _historians.FirstOrDefault(f => f.UnitNet == oldName);
+                        string sheetName = "unit" + historian.Unit;
                         workbook.Worksheets[oldName].Name = sheetName;
                     }
-                }
+                
             }
 
             else
             {
                 Worksheet worksheet = workbook.Worksheets[0];
-                SheetShaping(report.HistPoints, worksheet);
+                SheetShaping(report.HistPoints.ToList(), worksheet);
             }
 
 
             workbook.Worksheets.ActiveWorksheet = workbook.Worksheets[0];
-            report.State(99, LogLevel.Info, $"Saving the file: {filename}");
+            ireport.State(99, 2, $"Saving the file: {filename}");
             string tempPath = filename;
             //bool locked = false;
-            switch (report.ReportDestID)
+            switch (report.reportdestid)
             {
                 case 1: //window
                         //OutputWindow outputWindow = new OutputWindow();
@@ -111,24 +121,24 @@ namespace AdapterOPH
                 default:
                     break;
             }
-            report.State(100, LogLevel.Info, $"File saved: {filename}");
+            ireport.State(100, 2, $"File saved: {filename}");
         }
 
         public void SheetShaping(List<HistPoint> pointsList, Worksheet worksheet)
         {
             try
             {
-            var OrderedPoints = pointsList.OrderBy(o => o.PointPosn).ToList();
+            var OrderedPoints = pointsList.OrderBy(o => o.pointposn).ToList();
             var count = OrderedPoints.Count;
             //int row = 0;
-            string[] headers = report.Header2.Split(',');
+            string[] headers = report.header2.Split(',');
             
             var dateTimes = OrderedPoints.First().F_Values.Keys.Select(s => s.ToLocalTime());
 
             int dateCount = dateTimes.Count();
             worksheet.Import(dateTimes, headers.Length, 0, true);
 
-            if (report.SampleTimeFormatID != 6)
+            if (report.sampletimeformatid != 6)
             {
                 worksheet.Range.FromLTRB(0, headers.Length, 0, dateCount + 1).NumberFormat = "dd.mm.yy hh:mm:ss";
             }
@@ -145,11 +155,11 @@ namespace AdapterOPH
                     switch (h.Trim())
                     {
                         case "1"://kks
-                            SetCellValue(worksheet.Cells[row, col], point.PointName);
+                            SetCellValue(worksheet.Cells[row, col], point.pointname);
                             row++;
                             break;
                         case "2"://desc
-                            SetCellValue(worksheet.Cells[row, col], point.Description);
+                            SetCellValue(worksheet.Cells[row, col], point.description);
                             row++;
                             break;
                         case "3"://eng units
@@ -166,14 +176,15 @@ namespace AdapterOPH
                 }
                 else
                 {
-                    worksheet.Range.FromLTRB(col, row, col, dateCount + 1).NumberFormat = point.Format;
+                    worksheet.Range.FromLTRB(col, row, col, dateCount + 1).NumberFormat = point.format;
                 }
                 CellRange cells = worksheet.Range.FromLTRB(1, row, count, dateCount + 1);
                 cells.RowHeight = 14.4;
                 cells.ColumnWidth = 38;
                 var percents= col * 25 / count+75;
                 if (percents > 99) percents = 99;
-                report.State(percents,LogLevel.Off, $"File creation {report.DestinationInfo}");
+                //???????????????????????????????????
+                //report.State(percents,LogLevel.Off, $"File creation {report.destinationinfo}");
                 col++;
             }
             worksheet.Columns[0].AutoFit();
@@ -181,7 +192,8 @@ namespace AdapterOPH
             }
             catch (Exception e)
             {
-                report.State(report.Progress,LogLevel.Error, $"SheetShaping: {e.Message}");    
+                //??????????????????????????????????????
+                //report.State(report.Progress,LogLevel.Error, $"SheetShaping: {e.Message}");    
             }
 
         }
@@ -202,14 +214,14 @@ namespace AdapterOPH
         public void ExportAlarms()
         {
         }
-        public void ExportRaw()
+        public void ExportRAW()
         {
-            //    tempPath = Path.GetDirectoryName(Report.DestinationInfo) + @"\" + start.ToString("yyyy") + @"\" + start.ToString("MM") + @"\" + start.ToString("dd") + @"\";
+            //    tempPath = Path.GetDirectoryName(Report.destinationinfo) + @"\" + start.ToString("yyyy") + @"\" + start.ToString("MM") + @"\" + start.ToString("dd") + @"\";
             //    if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
             //    Parallel.ForEach(histPoints, item =>
             //    {
-            //        string filename = tempPath + item.PointName.Split('.')[0];
-            //        switch (Path.GetExtension(Report.DestinationInfo))
+            //        string filename = tempPath + item.pointname.Split('.')[0];
+            //        switch (Path.GetExtension(Report.destinationinfo))
             //        {
             //            case ".xlsx":
             //                break;
@@ -268,6 +280,20 @@ namespace AdapterOPH
             return false;
         }
 
+        public void ToXLSX()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ToXLSB()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ToCSV()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
 

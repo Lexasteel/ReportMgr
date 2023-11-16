@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Diagnostics;
-using Newtonsoft.Json;
 using AdapterOPH;
 
 namespace ReportMgr
@@ -9,18 +8,18 @@ namespace ReportMgr
     {
         public static void ReportImport(string filename)
         {
-            DataContext context = new DataContext();
-            string js = File.ReadAllText(filename);
-            ReportDefinition rep = JsonConvert.DeserializeObject<ReportDefinition>(js);
-            rep.ReportDefinitionID = 0;
-            rep.TimePeriodInfo = "1";
-            rep.Header2 = "2,3";
-            foreach (HistPoint item in rep.HistPoints)
-            {
-                item.HistPointID = 0;
-            }
-            context.ReportDefinitions.Add(rep);
-            context.SaveChanges();
+            //DataContext context = new DataContext();
+            //string js = File.ReadAllText(filename);
+            //ReportDefinition rep = JsonConvert.DeserializeObject<ReportDefinition>(js);
+            //rep.reportdefinitionid = 0;
+            //rep.timeperiodinfo = "1";
+            //rep.header2 = "2,3";
+            //foreach (HistPoint item in rep.HistPoints)
+            //{
+            //    item.histpointid = 0;
+            //}
+            //context.ReportDefinitions.Add(rep);
+            //context.SaveChanges();
         }
 
         public static void ReportExplorer(string path)

@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SaveFile
+namespace ReportMgr
 {
-    public class Class1
+    internal class HelpersRpt
     {
+       
     }
 }

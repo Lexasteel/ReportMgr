@@ -1,33 +1,39 @@
 ﻿using AdapterOPH;
+using Models;
 using NLog;
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Dapper;
+using Npgsql;
+using Dapper.Contrib.Extensions;
 
 namespace ReportMgr
 {
     static class Program
     {
-        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-        private static extern bool AllocConsole();
+        //[System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        //private static extern bool AllocConsole();
 
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern bool FreeConsole();
 
         [DllImport("kernel32", SetLastError = true)]
         static extern bool AttachConsole(int dwProcessId);
+        private const int ATTACH_PARENT_PROCESS = -1;
 
-        [DllImport("user32.dll")]
-        static extern IntPtr GetForegroundWindow();
+        //[DllImport("user32.dll")]
+        //static extern IntPtr GetForegroundWindow();
 
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+        //[DllImport("user32.dll", SetLastError = true)]
+        //static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
 
 
+        //private static List<Historian> hist;
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -35,158 +41,162 @@ namespace ReportMgr
         [STAThread]
         static void Main(string[] args)
         {
-            string mode = args.Length > 0 ? args[0] : "gui"; //default to gui
-            Logger log = LogManager.GetCurrentClassLogger();
-            if (mode == "gui")
+            AttachConsole(ATTACH_PARENT_PROCESS);
+            string mode = args.Length > 0 ? args[0] : "-gui"; //default to gui
+
+            switch (mode)
             {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new FormMain());
-            }
-            else if (mode == "con")
-            {
-                //Get a pointer to the forground window.  The idea here is that
-                //IF the user is starting our application from an existing console
-                //shell, that shell will be the uppermost window.  We'll get it
-                //and attach to it
-
-
-                IntPtr ptr = GetForegroundWindow();
-
-                int u;
-
-                GetWindowThreadProcessId(ptr, out u);
-
-                Process process = Process.GetProcessById(u);
-
-
-                //if (process.ProcessName == "cmd" || process.ProcessName == "devenv")    //Is the uppermost window a cmd process?
-                //{
-                //    AttachConsole(process.Id);
-                //    Console.WriteLine(@"hello. It cmd");
-                //    Console.ReadLine();
-                //}
-
-
-
-                AllocConsole();
-
-
-
-                Console.WriteLine("Start task.");
-
-
-                try
-                {
-
-                    using (DataContext db = new DataContext())
+                case "-gui":
                     {
-                        bool res = true;
+                        Application.EnableVisualStyles();
+                        Application.SetCompatibleTextRenderingDefault(false);
+                        Application.Run(new FrmMain());
+                        break;
+                    }
+                case "-con":
+                    {
                         var now = DateTime.Now;
-                        now = now.AddMilliseconds(-now.Millisecond);
-                        var reports = db.ReportDefinitions.Where(w => w.Enable.Equals(true) && w.NextEvent.Value < now).OrderBy(o=>o.ReportName).ToList();
-                        var count = reports.Count();
-                        Console.WriteLine($"Reports: {count}");
-                        foreach (var report in reports)
+                        var connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["Reports_Connection"].ConnectionString;
+                        using (var _connection = new NpgsqlConnection(connectionString))
                         {
-                            res = true;
-                            while (res)
+                            try
                             {
-                                Task t = Task.Run(() =>
+
+
+                               
+                         
+                                Console.WriteLine();
+                                Console.Write("Connect to database");
+                               
+                                var t = new Task<List<ReportDefinition>>(() =>
                                 {
-                                    DataClient dataClient = new DataClient(report);
-                                    Console.WriteLine(report.ReportName);
-                                    report.LastUsed = now;
-                                    report.ModeGUI = false;
-                                    report.End = report.NextEvent.Value;
-                                    report.Start = report.DateCalc(report.NextEvent.Value, true);
-                                    res = dataClient.GenerateReport().Result;
-                                    if (res)
-                                    {
-                                        DateTime NextEvent = report.DateCalc(report.NextEvent.Value);
-                                        report.NextEvent = NextEvent;
-                                        report.LastUsed = now;
-                                        db.SaveChanges();
-                                        if (NextEvent>now) { res = false; }
-                                    }
-                                    else
-                                    {
-                                        res = false;
-                                    }
+                                   var enable = true;
+                                    var sql =
+                                        "SELECT * FROM reportdefinitions WHERE nextevent < @Now AND enable=@Enable";
+                                    var list = _connection
+                                        .Query<ReportDefinition>(sql, new { Now = now, Enable = enable }).ToList();
+                                    return list;
+
+
+
                                 });
-                                Task.WaitAll(t);
+                         
+                                while (!t.IsCompleted && !t.IsFaulted)
+                                {
+                                    Console.Write(".");
+                                    Thread.Sleep(1000);
+                                    if (t.Status == TaskStatus.Created)
+                                    {
+                                        t.Start();
+                                    }
+                                }
+
+                                Console.WriteLine("OK");
+                                var reports = t.Result;
+                                var count = reports.Count;
+                                Console.WriteLine($"Total reports: {count}");
+                                
+                                foreach (var report in reports)
+                                {
+                                   var res = true;
+
+                                   var sql = "SELECT * FROM histpoints WHERE reportdefinitionid=@ID";
+                                   report.HistPoints = _connection.Query<HistPoint>(sql, new { ID = report.reportdefinitionid }).ToList();
+                                   sql = "SELECT * FROM historians ";
+                                   report.Historians = _connection.Query<Historian>(sql).ToList();
+
+                                    while (res)
+                                    {
+
+                                        var h_count = (66 - report.reportname.Length) / 2;
+                                        var header = "|" + new string(' ', h_count) + report.reportname +
+                                                     new string(' ', h_count) + "|";
+                                        Console.WriteLine(new string('=', header.Length));
+                                        Console.WriteLine(header);
+                                        Console.WriteLine(new string('=', header.Length));
+                                        var end = report.nextevent.Value;
+                                        var start = HelpersAdapter.DateCalc(report.nextevent.Value,
+                                            report.timeperiodinfo, report.timeformatid, true);
+                                        var target = CreateReport(report, start, end);
+                                        target.ConsoleMode = true;
+                                        res = target.Generate().Result;
+                                        if (res)
+                                        {
+                                            DateTime NextEvent = HelpersAdapter.DateCalc(report.nextevent.Value,
+                                                report.timeperiodinfo, report.timeformatid);
+                                            _connection.Update(new ReportDefinition
+                                            {
+                                                reportdefinitionid =report.reportdefinitionid,
+                                                nextevent = NextEvent,
+                                                lastused = now,
+                                            });
+                                            if (NextEvent > now)
+                                            {
+                                                res = false;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            res = false;
+                                        }
+                                        //});
+                                        //Task.WaitAll(t);
+                                    }
+                                }
+
+                            }
+                            catch (Exception e)
+                            {
+                                Logger log = LogManager.GetCurrentClassLogger();
+                                log.Error(e.Message);
+                                Console.WriteLine(e.Message);
+                                Thread.Sleep(5000);
                             }
                         }
+
+                        var gl = "GOOD LUCK!!!";
+                         var fc = (66 - gl.Length) / 2;
+                        Console.WriteLine(new string('=',fc)+gl+ new string('=', fc));
+                        System.Windows.Forms.SendKeys.SendWait("{ENTER}");
+                        //Thread.Sleep(5000);
+                        FreeConsole();
+                        break;
                     }
-                }
-                catch (Exception e)
-                {
-                    log.Error(e.Message);
-                    Console.WriteLine(e.Message);
-                    Thread.Sleep(5000);
-                }
-                Console.WriteLine("End task.");
-                Thread.Sleep(5000);
+                default:
+                    {
+                        // AllocConsole();
+                        Console.WriteLine();
+                        Console.WriteLine("ReportMgr -gui or empty      window mode");
+                        Console.WriteLine("ReportMgr -con               console mode");
+                        System.Windows.Forms.SendKeys.SendWait("{ENTER}");
+                        //Thread.Sleep(5000);
+                        FreeConsole();
+                        break;
+                    }
 
 
-                //if (process.ProcessName == "cmd")    //Is the uppermost window a cmd process?
-                //{
-                //    AttachConsole(process.Id);
-                //    Console.WriteLine(@"hello. It cmd");
-                //    Console.ReadLine();
-                //}
-                //else
-                //{
-                //    //no console AND we're in console mode ... create a new console.
-
-                //    AllocConsole();
-
-                //    Console.WriteLine(@"hello. It looks like you double clicked me to start
-                //   AND you want console mode.  Here's a new console.");
-                //    Console.WriteLine("press any key to continue ...");
-                //    // Console.ReadLine();
-
-                //}
-
-                FreeConsole();
             }
-
-            //    if (args.Length > 0)
-            //{
-            //    // Command line given, display console
-            //    AllocConsole();
-            //    Console.WriteLine("Argument");
-
-            //    ConsoleMain(args);
-            //}
-            //else
-            //{
-
-            //}
         }
-        private static void ConsoleMain(string[] args)
+
+        static IReport CreateReport(ReportDefinition report, DateTime start, DateTime end)
         {
-            Console.WriteLine("Command line = {0}", Environment.CommandLine);
-            for (int ix = 0; ix < args.Length; ++ix)
-                Console.WriteLine("Argument{0} = {1}", ix + 1, args[ix]);
-            Console.ReadLine();
+            switch (report.reporttypeid)
+            {
+                case 1: //simple
+                    break;
+                case 2: //oper.events
+                    break;
+                case 3: //alarms
+                    break;
+                case 4: //RAW
+                    return new RawReport(report, start, end);
+                    
+
+            }
+            return new SimpleReport(report, start, end);
         }
-        //static SQLiteConnection CreateConnection()
-        //{
-        //    SQLiteConnection sqlite_conn;
-        //    sqlite_conn = new SQLiteConnection("Data Source=Rpt.db;Version=3;New=true;Compress=true;");
-        //    try
-        //    {
-        //        sqlite_conn.Open();
-        //    }
-        //    catch (Exception ex)
-        //    {
 
-        //        Console.WriteLine(ex.Message);
-        //    }
-        //    return sqlite_conn;
-        //}
-
-
+       
     }
 }
+

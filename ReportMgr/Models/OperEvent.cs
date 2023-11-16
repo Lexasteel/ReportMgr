@@ -1,12 +1,11 @@
-﻿using AdapterOPH;
+﻿using Models;
 using System;
-using System.ComponentModel.DataAnnotations.Schema;
 
 
 
 namespace ReportMgr
 {
-    [NotMapped]
+
     public class OperEventReport : ReportDefinition
     {
         protected string FileName { get; set; }
@@ -23,8 +22,8 @@ namespace ReportMgr
         //                return c;
         //            }
         //        }
-        //        HistTimeStamp histstart = OvHNetHelper.StringToHistTime(string.Format("{0:MM'/'dd'/'yyyy HH:mm:ss}", StartDate.ToUniversalTime()));
-        //        HistTimeStamp histend = OvHNetHelper.StringToHistTime(string.Format("{0:MM'/'dd'/'yyyy HH:mm:ss}", EndDate.ToUniversalTime()));
+        //        HistTimeStamp histstart = OvHNetHelper.StringToHistTime(string.format("{0:MM'/'dd'/'yyyy HH:mm:ss}", StartDate.ToUniversalTime()));
+        //        HistTimeStamp histend = OvHNetHelper.StringToHistTime(string.format("{0:MM'/'dd'/'yyyy HH:mm:ss}", EndDate.ToUniversalTime()));
 
         //        client.Connect(Connection);
 
@@ -82,10 +81,10 @@ namespace ReportMgr
 
 
         //    }
-        //    if (Arhive==1)
+        //    if (arhive==1)
         //    {
-        //        string source = Path.GetDirectoryName(Destination) + @"\" + ReportName + @"\" + StartDate.ToString("yyyy");
-        //        string dest = Path.GetDirectoryName(Destination) + @"\" + ReportName + "_" + StartDate.ToString("yyyy") + ".zip ";
+        //        string source = Path.GetDirectoryName(Destination) + @"\" + reportname + @"\" + StartDate.ToString("yyyy");
+        //        string dest = Path.GetDirectoryName(Destination) + @"\" + reportname + "_" + StartDate.ToString("yyyy") + ".zip ";
         //        CreateZip(source, dest, 0);
         //    }
         //    return 0;
@@ -99,10 +98,10 @@ namespace ReportMgr
         //            MessageBox.Show("Необходимо использовать тип файла .csv");
         //            return false;
         //        case ".csv":
-        //            string newpath = Path.GetDirectoryName(Destination) + @"\" + ReportName + @"\" + Start.Value.ToString("yyyy") + @"\";
+        //            string newpath = Path.GetDirectoryName(Destination) + @"\" + reportname + @"\" + Start.Value.ToString("yyyy") + @"\";
         //            if (!Directory.Exists(newpath)) Directory.CreateDirectory(newpath);
-        //            string file = newpath + ReportName + "_";
-        //            switch (TimeFormatID)
+        //            string file = newpath + reportname + "_";
+        //            switch (timeformatid)
         //            {
         //                case 3:
         //                    file += Start.Value.ToString("yyyyMM") + ".csv";
@@ -128,7 +127,7 @@ namespace ReportMgr
         //        operEvents.Select(x => String.Join(";", x.TimeStamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss"), x.Drop, x.Message)), Encoding.GetEncoding("Windows-1251"));
         //}
     }
-    [NotMapped]
+    
     public class OperEvent
     {
         public DateTime TimeStamp { get; set; }
